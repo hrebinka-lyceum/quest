@@ -616,7 +616,8 @@ const PW = (() => {
     const core = low.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '');
     let bits;
     if (COMMON.has(low) || COMMON.has(deleet(low)) || (core && (COMMON.has(core) || COMMON.has(deleet(core))))) {
-      bits = 7 + Math.max(0, r.len - Array.from(core).length) * 2;
+      const whole = COMMON.has(low) || COMMON.has(deleet(low));
+      bits = whole ? 7 : 7 + Math.max(0, r.len - Array.from(core).length) * 2;
       r.flags.push({ bad: true, t: 'дуже поширений пароль — він є в усіх словниках зловмисників' });
       r.bad = true;
     } else {
@@ -628,13 +629,13 @@ const PW = (() => {
         const n = Array.from(t.t).length;
         const lt = t.t.toLowerCase();
         if (t.k === 'L') {
-          if (n >= 2) r.words++;
+          if (n >= 3) r.words++;
           if (n >= 3 && isSeq(lt)) { sum += 6; r.flags.push({ bad: true, t: 'послідовність символів «' + t.o + '»' }); r.bad = true; return; }
           if (isRepeat(lt)) { sum += LOG2(n) + 5; r.flags.push({ bad: true, t: 'повтор символів «' + t.o + '»' }); r.bad = true; return; }
           const clean = lt.replace(/['’ʼ`]/g, '');
           if (BAD_WORDS.has(clean)) { sum += 8; r.flags.push({ bad: true, t: 'поширене слово «' + t.o + '»' }); r.bad = true; return; }
           if (wordLike(lt)) {
-            const w = Math.max(1, Math.round(n / 6));
+            const w = n <= 11 ? 1 : Math.round(n / 7);   // дуже довгий «шматок» — кілька слів без пробілів
             let b = Math.min(n * (structured ? LOG2(letterPool(t.t)) : pbits), w * WORD);
             const ups = Array.from(t.t).filter(isUpper).length;
             if (ups) b += (ups === n) ? 1 : Math.min(4, ups);
@@ -692,7 +693,7 @@ const LEVEL_COLORS = ['#ff7070', '#ff9f5a', '#ffb938', '#7fe0a8', '#3dd6b5'];
 function pwChecks(pw) {
   const r = PW.analyze(pw);
   return [
-    { ok: r.words >= 4, t: 'щонайменше 4 слова, розділені пробілом, дефісом чи іншим знаком', now: 'зараз: ' + r.words },
+    { ok: r.words >= 4, t: 'щонайменше 4 слова по 3+ літери, розділені пробілом, дефісом чи іншим знаком', now: 'зараз: ' + r.words },
     { ok: r.len >= 20, t: 'довжина — щонайменше 20 символів', now: 'зараз: ' + r.len },
     { ok: !!pw && !r.bad, t: 'без поширених паролів, послідовностей і повторів (123, qwerty, йцукен, aaa)', now: '' },
     { ok: r.secs >= 100 * YEAR, t: 'час злому — щонайменше 100 років', now: pw ? 'зараз: ' + fmtTime(r.secs) : '' }
